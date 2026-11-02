@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1b33">
+<title>The Curious Byte · AR Video</title>
+<script src="lib/aframe-1.5.0.min.js"></script>
+<script src="lib/mindar-image-aframe-1.2.5.prod.js"></script>
+<style>
+  :root{--navy:#0b1b33;--navy2:#12406f;--teal:#3de5d5;--ink:#eef6ff;--muted:#a9bdd6;--warn:#ffd08b}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--navy);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden}
+  button{font:inherit;cursor:pointer;border:0;border-radius:999px;padding:14px 20px;font-weight:700}
+  .primary{background:var(--teal);color:#062033}
+  .secondary{background:rgba(255,255,255,.1);color:var(--ink);border:1px solid rgba(255,255,255,.22)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+  .layer{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column}
+  .hidden{display:none!important}
+  /* intro */
+  #intro{background:radial-gradient(120% 80% at 50% 0%,var(--navy2),var(--navy) 70%);overflow:auto;padding:max(28px,env(safe-area-inset-top)) 22px max(24px,env(safe-area-inset-bottom))}
+  .wrap{max-width:460px;margin:auto;width:100%}
+  .brand{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--teal);font-weight:800}
+  h1{font-size:30px;line-height:1.1;margin:8px 0 6px}
+  .sub{color:var(--muted);margin:0 0 22px}
+  ol{margin:0 0 24px;padding:0;list-style:none;display:grid;gap:12px}
+  ol li{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px}
+  ol li b{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--teal);color:#062033}
+  .actions{display:grid;gap:10px}
+  .status{min-height:22px;margin-top:14px;font-size:14px;color:var(--muted)}
+  .status.warn{color:var(--warn)}
+  /* AR heads-up display */
+  #hud{z-index:30;pointer-events:none;justify-content:space-between;padding:max(14px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom))}
+  #hint{align-self:center;max-width:340px;text-align:center;background:rgba(6,21,43,.82);border:1px solid rgba(61,229,213,.5);border-radius:16px;padding:10px 14px;font-size:15px;backdrop-filter:blur(6px)}
+  .frameguide{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(86vw,calc(70vh * 1055 / 927));aspect-ratio:1055/927;border:3px solid rgba(61,229,213,.75);border-radius:14px;pointer-events:none;z-index:25;animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  .bar{display:flex;gap:10px;justify-content:center;pointer-events:auto}
+  .bar button{background:rgba(6,21,43,.86);color:#fff;border:1px solid rgba(255,255,255,.25);padding:12px 16px;font-size:15px}
+  /* plain player */
+  #player{background:#000;z-index:40;justify-content:center}
+  #player video{width:100%;max-height:100%;background:#000}
+  #player .bar{position:absolute;top:max(14px,env(safe-area-inset-top));right:14px}
+  #loading{z-index:35;place-items:center;display:grid;background:rgba(11,27,51,.92)}
+  .spinner{width:46px;height:46px;border-radius:50%;border:4px solid rgba(255,255,255,.2);border-top-color:var(--teal);animation:spin 1s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #arvideo{position:fixed;left:-10px;top:-10px;width:2px;height:2px;opacity:0;pointer-events:none}
+  html.ar-on,html.ar-on body{background:transparent}
+  @media (prefers-reduced-motion:reduce){.frameguide,.spinner{animation:none}}
+</style>
+</head>
+<body>
+<!-- Video used as the AR texture (kept off-screen) -->
+<video id="arvideo" playsinline webkit-playsinline preload="auto" crossorigin="anonymous"></video>
+
+<section id="intro" class="layer" aria-labelledby="title">
+  <div class="wrap">
+    <div class="brand">The Curious Byte</div>
+    <h1 id="title">This week's video</h1>
+    <p class="sub" id="weekline">AI Literacy Program</p>
+    <ol>
+      <li><b>1</b><span>Tap <strong>Start AR</strong> and allow the camera.</span></li>
+      <li><b>2</b><span>Point your phone at the <strong>top of the newsletter</strong>: the header and the video picture, all in view.</span></li>
+      <li><b>3</b><span>The video lifts off the page and plays. Hold steady, sound on.</span></li>
+    </ol>
+    <div class="actions">
+      <button class="primary" id="startAR" disabled>Start AR</button>
+      <button class="secondary" id="playPlain" disabled>Just play the video</button>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite">Checking this week's files…</div>
+  </div>
+</section>
+
+<section id="loading" class="layer hidden" role="status" aria-live="polite"><div><div class="spinner"></div>Starting camera…</div></section>
+
+<div id="guide" class="frameguide hidden" aria-hidden="true"></div>
+<section id="hud" class="layer hidden">
+  <div id="hint">Point at the top of the newsletter: the header and the video picture</div>
+  <div class="bar">
+    <button id="sound" type="button">🔊 Sound on</button>
+    <button id="toPlain" type="button">Play normally</button>
+    <button id="closeAR" type="button" aria-label="Close AR">✕</button>
+  </div>
+</section>
+
+<section id="player" class="layer hidden" aria-label="Video player">
+  <video id="plain" controls playsinline webkit-playsinline preload="metadata"></video>
+  <div class="bar"><button id="closePlain" type="button" aria-label="Close video">✕ Close</button></div>
+</section>
+
+<script>
+(function(){
+  // Layout of the newsletter's AR target image (header + video card), in pixels.
+  // Matches the editor's "Download AR target image" (1055 px wide).
+  var TARGET = { w: 1055, h: 927 };
+  var FRAME  = { x: 33.5, y: 353, w: 992, h: 558 };   // the 16:9 video picture inside the target
+
+  var $ = function(id){ return document.getElementById(id); };
+  var params = new URLSearchParams(location.search);
+  var raw = (params.get('week') || '').replace(/\D/g, '').slice(0, 3);
+  var code = raw ? raw.padStart(2, '0') : '';
+  var videoUrl = 'weeks/week-' + code + '.mp4';
+  var mindUrl  = 'weeks/week-' + code + '.mind';
+  var arVideo = $('arvideo'), plain = $('plain');
+  var sceneEl = null, arRunning = false;
+
+  function status(text, warn){ var s = $('status'); s.textContent = text; s.classList.toggle('warn', !!warn); }
+  function show(id, on){ $(id).classList.toggle('hidden', !on); }
+
+  async function exists(url){
+    try { var r = await fetch(url, { method: 'HEAD', cache: 'no-store' }); return r.ok; }
+    catch (e) { return false; }
+  }
+
+  async function init(){
+    if (!code){ status('Open this page from the QR code in the newsletter.', true); return; }
+    $('weekline').textContent = 'Week ' + code + ' · AI Literacy Program';
+    var hasVideo = await exists(videoUrl), hasMind = await exists(mindUrl);
+    if (!hasVideo){ status('This week\'s video isn\'t online yet. Please check back later.', true); return; }
+    arVideo.src = videoUrl; plain.src = videoUrl;
+    $('playPlain').disabled = false;
+    var canCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && window.isSecureContext;
+    if (!hasMind){ status('AR isn\'t ready for this week. You can still play the video.', true); return; }
+    if (!canCamera){ status('This browser can\'t open the camera. Open the link in Safari or Chrome, or just play the video.', true); return; }
+    $('startAR').disabled = false;
+    var phone = matchMedia('(pointer: coarse)').matches;
+    status(phone ? 'Ready.' : 'Tip: AR works best on a phone. On a computer, just play the video.');
+  }
+
+  // A tap unlocks sound playback on iOS/Android for the AR video.
+  function unlockAudio(){
+    arVideo.muted = false;
+    var p = arVideo.play();
+    if (p && p.then) p.then(function(){ arVideo.pause(); }).catch(function(){ arVideo.muted = true; updateSound(); });
+  }
+  function updateSound(){ $('sound').textContent = arVideo.muted ? '🔇 Sound off' : '🔊 Sound on'; }
+
+  function u(px){ return px / TARGET.w; }   // MindAR: target width = 1 unit, origin at its centre, y up
+  function buildScene(){
+    var x = u(FRAME.x + FRAME.w / 2 - TARGET.w / 2).toFixed(4);
+    var y = u(TARGET.h / 2 - (FRAME.y + FRAME.h / 2)).toFixed(4);
+    var w = u(FRAME.w).toFixed(4), h = u(FRAME.h).toFixed(4);
+    var lift = 0.08;
+    var wrap = document.createElement('div');
+    wrap.innerHTML =
+      '<a-scene mindar-image="imageTargetSrc: ' + mindUrl + '; autoStart: false; uiLoading: no; uiScanning: no; uiError: no; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 8; warmupTolerance: 3"' +
+      ' color-space="sRGB" renderer="colorManagement: true; antialias: true; alpha: true" vr-mode-ui="enabled: false" xr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false" loading-screen="enabled: false">' +
+        '<a-camera position="0 0 0" look-controls="enabled: false"></a-camera>' +
+        '<a-entity id="anchor" mindar-image-target="targetIndex: 0">' +
+          // soft shadow left on the page
+          '<a-plane width="' + w + '" height="' + h + '" position="' + x + ' ' + (y - 0.015) + ' 0.001" material="shader: flat; color: #000; opacity: 0.35; transparent: true"></a-plane>' +
+          '<a-entity id="float" position="' + x + ' ' + y + ' 0"' +
+            ' animation__up="property: position; to: ' + x + ' ' + y + ' ' + lift + '; dur: 700; easing: easeOutBack; startEvents: liftoff"' +
+            ' animation__down="property: position; to: ' + x + ' ' + y + ' 0; dur: 10; startEvents: land">' +
+            '<a-entity animation__bob="property: rotation; from: -3 -2 0; to: 3 2 0; dir: alternate; loop: true; dur: 2600; easing: easeInOutSine">' +
+              '<a-plane width="' + (+w + 0.02) + '" height="' + (+h + 0.02) + '" position="0 0 -0.003" material="shader: flat; color: #3de5d5"></a-plane>' +
+              '<a-video src="#arvideo" width="' + w + '" height="' + h + '"></a-video>' +
+            '</a-entity>' +
+          '</a-entity>' +
+        '</a-entity>' +
+      '</a-scene>';
+    sceneEl = wrap.firstChild;
+    document.body.appendChild(sceneEl);
+    var anchor = sceneEl.querySelector('#anchor'), float = sceneEl.querySelector('#float');
+    anchor.addEventListener('targetFound', function(){
+      show('hint', false); show('guide', false);
+      float.emit('liftoff');
+      var p = arVideo.play(); if (p && p.catch) p.catch(function(){ arVideo.muted = true; updateSound(); arVideo.play(); });
+    });
+    anchor.addEventListener('targetLost', function(){
+      arVideo.pause(); float.emit('land'); show('hint', true); show('guide', true);
+    });
+    sceneEl.addEventListener('arReady', function(){ show('loading', false); show('hud', true); show('guide', true); });
+    sceneEl.addEventListener('arError', function(){
+      show('loading', false); stopAR(); show('intro', true);
+      status('The camera couldn\'t start (permission blocked?). Allow camera access and try again, or just play the video.', true);
+    });
+    var go = function(){ sceneEl.systems['mindar-image-system'].start(); arRunning = true; };
+    if (sceneEl.hasLoaded) go(); else sceneEl.addEventListener('loaded', go);
+  }
+
+  function stopAR(){
+    try { if (arRunning && sceneEl) sceneEl.systems['mindar-image-system'].stop(); } catch (e) {}
+    arRunning = false; arVideo.pause();
+    if (sceneEl){ sceneEl.parentNode && sceneEl.parentNode.removeChild(sceneEl); sceneEl = null; }
+    document.querySelectorAll('.mindar-ui-overlay, body > video:not(#arvideo)').forEach(function(e){ e.remove(); });
+    document.documentElement.classList.remove('a-fullscreen', 'ar-on');
+    show('hud', false); show('guide', false);
+  }
+
+  $('startAR').addEventListener('click', function(){
+    unlockAudio(); updateSound(); document.documentElement.classList.add('ar-on');
+    show('intro', false); show('loading', true);
+    buildScene();
+  });
+  $('playPlain').addEventListener('click', function(){
+    show('intro', false); show('player', true); plain.play().catch(function(){});
+  });
+  $('toPlain').addEventListener('click', function(){
+    var t = arVideo.currentTime || 0; stopAR();
+    show('player', true); plain.currentTime = t; plain.play().catch(function(){});
+  });
+  $('closeAR').addEventListener('click', function(){ stopAR(); show('intro', true); });
+  $('closePlain').addEventListener('click', function(){ plain.pause(); show('player', false); show('intro', true); });
+  $('sound').addEventListener('click', function(){ arVideo.muted = !arVideo.muted; if (!arVideo.muted && arVideo.paused === false) arVideo.play(); updateSound(); });
+
+  init();
+})();
+</script>
+</body>
+</html>

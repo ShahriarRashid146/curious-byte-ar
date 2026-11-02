@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Curious Byte · AR Target Compiler</title>
+<script src="lib/aframe-1.5.0.min.js"></script>
+<script src="lib/mindar-image-aframe-1.2.5.prod.js"></script>
+<style>
+  :root{--navy:#0b1b33;--panel:#13294a;--teal:#3de5d5;--ink:#eef6ff;--muted:#a9bdd6;--warn:#ffd08b}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--navy);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  main{max-width:720px;margin:0 auto;padding:32px 16px 48px}
+  .brand{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--teal);font-weight:800}
+  h1{font-size:28px;margin:6px 0 4px}
+  p{color:var(--muted);margin:0 0 18px}
+  .drop{border:2px dashed #4f6f94;border-radius:16px;padding:34px 16px;text-align:center;background:var(--panel);cursor:pointer}
+  .drop.drag{border-color:var(--teal);background:#18405a}
+  .drop strong{color:var(--ink);font-size:17px}
+  .item{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center;background:var(--panel);border-radius:14px;padding:12px;margin-top:12px}
+  .item img{width:120px;height:auto;border-radius:8px;background:#fff}
+  .bar{height:8px;border-radius:8px;background:#28456b;overflow:hidden;margin:8px 0}
+  .bar i{display:block;height:100%;width:0;background:var(--teal);transition:width .2s}
+  .msg{font-size:14px}.msg.warn{color:var(--warn)}.msg.ok{color:#80e6cc}
+  ol{color:var(--muted);padding-left:20px}
+  code{background:#0a1730;border-radius:5px;padding:1px 5px;color:var(--ink)}
+  button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:9px 16px;background:var(--teal);color:#062033;cursor:pointer;margin-top:6px}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">The Curious Byte · AR tools</div>
+  <h1>Compile this week's AR target</h1>
+  <p>Drop the <code>week-NN-target.png</code> you downloaded from the newsletter editor (Content → Video → Download AR target image). Everything runs in this browser; nothing is uploaded.</p>
+  <label class="drop" id="drop" tabindex="0">
+    <strong>Drop target image here</strong><br>or click to choose (PNG or JPEG)
+    <input type="file" id="file" accept="image/png,image/jpeg" multiple hidden>
+  </label>
+  <div id="list"></div>
+  <h2 style="font-size:18px;margin-top:28px">Then</h2>
+  <ol>
+    <li>Keep the downloaded <code>week-NN.mind</code> file.</li>
+    <li>Upload <code>week-NN.mind</code> and the video as <code>week-NN.mp4</code> into the <code>weeks</code> folder of your site.</li>
+    <li>Wait a minute for the site to update, then scan the QR code in the newsletter to test.</li>
+  </ol>
+</main>
+<script>
+(function(){
+  var list = document.getElementById('list'), drop = document.getElementById('drop'), input = document.getElementById('file');
+  var queue = Promise.resolve();
+  function outName(name){
+    var base = name.replace(/\.[^.]+$/, '').replace(/-target$/i, '');
+    return (/^week-\d+$/i.test(base) ? base.toLowerCase() : base) + '.mind';
+  }
+  function add(file){
+    if (!/^image\/(png|jpeg)$/.test(file.type)) return;
+    var row = document.createElement('div'); row.className = 'item';
+    var img = document.createElement('img'); img.alt = file.name;
+    var info = document.createElement('div');
+    info.innerHTML = '<strong></strong><div class="bar"><i></i></div><div class="msg">Waiting…</div>';
+    info.querySelector('strong').textContent = file.name + ' → ' + outName(file.name);
+    row.append(img, info); list.append(row);
+    var bar = info.querySelector('i'), msg = info.querySelector('.msg');
+    var url = URL.createObjectURL(file); img.src = url;
+    queue = queue.then(async function(){
+      try {
+        // Compile from a full-size, off-screen copy: MindAR uses the element's width/height.
+        var full = new Image(); full.src = url; await full.decode();
+        if (full.naturalWidth < 480) { msg.className = 'msg warn'; msg.textContent = 'Image is small; tracking may be weak. Use the editor\'s target download.'; }
+        else msg.textContent = 'Analysing image features…';
+        var compiler = new window.MINDAR.IMAGE.Compiler();
+        await compiler.compileImageTargets([full], function(p){ bar.style.width = Math.min(100, p).toFixed(0) + '%'; });
+        var buffer = await compiler.exportData();
+        var blob = new Blob([buffer]);
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = outName(file.name);
+        a.click();
+        bar.style.width = '100%';
+        msg.className = 'msg ok';
+        msg.textContent = 'Done: ' + outName(file.name) + ' downloaded (' + (blob.size / 1024).toFixed(0) + ' KB).';
+        var again = document.createElement('button'); again.type = 'button'; again.textContent = 'Download again';
+        again.onclick = function(){ a.click(); }; info.append(again);
+      } catch (e) {
+        msg.className = 'msg warn'; msg.textContent = 'Could not compile: ' + (e && e.message || e);
+      }
+    });
+  }
+  input.addEventListener('change', function(){ [].forEach.call(input.files, add); input.value = ''; });
+  drop.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+  ['dragenter','dragover'].forEach(function(n){ drop.addEventListener(n, function(e){ e.preventDefault(); drop.classList.add('drag'); }); });
+  drop.addEventListener('dragleave', function(){ drop.classList.remove('drag'); });
+  drop.addEventListener('drop', function(e){ e.preventDefault(); drop.classList.remove('drag'); [].forEach.call(e.dataTransfer.files, add); });
+})();
+</script>
+</body>
+</html>
