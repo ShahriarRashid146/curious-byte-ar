@@ -1,7 +1,8 @@
-Put each week's two files in this folder:
+Put each week's three files in this folder (NN = week number, two digits: 01, 02 ... 30):
 
-  week-01.mp4    the video (MP4, H.264 + AAC; under 25 MB for GitHub web upload)
-  week-01.mind   the AR target made on compile.html from week-01-target.png
+  week-NN.mp4    the video (9:16 vertical, MP4 H.264 + AAC; under 25 MB for GitHub web upload)
+  week-NN.mind   the AR target, made on compile.html from week-NN-target.png
+  week-NN.json   the landing-page buttons (Portal / Quiz), downloaded from the newsletter editor
 
-The number must match the week number in the newsletter editor (two digits: 01, 02 ... 30).
-The QR code for week 1 opens  .../?week=01  and loads these two files.
+The QR code for week 1 opens  .../?week=01  and loads these files.
+The .json file is optional (no file = no buttons) and can be re-uploaded at any time to change the links.
