@@ -1,0 +1,16 @@
+{
+  "week": "04",
+  "title": "Too Long To Read? Let AI Find The Key Points",
+  "portal": {
+    "label": "Visit Byte's Platform",
+    "url": "https://script.google.com/macros/s/AKfycbylFSH4N1B3y8wi5Hs4rwN9RWXXY19LWZnmyWDZSxrIlL9W0keSUIPnMACOOIHHVCiuzw/exec"
+  },
+  "quiz": {
+    "label": "Test Your Knowledge",
+    "url": "https://script.google.com/macros/s/AKfycbylFSH4N1B3y8wi5Hs4rwN9RWXXY19LWZnmyWDZSxrIlL9W0keSUIPnMACOOIHHVCiuzw/exec?page=quiz"
+  },
+  "target": {
+    "w": 474,
+    "h": 116
+  }
+}
